@@ -554,6 +554,7 @@
         let displayedItems = 0;
         let itemsPerPage = 10;
         let searchQuery = '';
+
         // 값 표시 함수 (0도 정상 표시, 공백 처리 개선)
         function displayValue(value) {
             // 값이 존재하고 공백 제거 후에도 내용이 있는 경우
@@ -562,7 +563,6 @@
             }
             return 'N/A';
         }
-       
 
         // PWA 설치 기능
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -661,8 +661,9 @@
                 allData = jsonData.slice(1).map(row => {
                     const item = {};
                     headers.forEach((header, index) => {
-                    const value = row[index];
-                 item[header] = (value !== undefined && value !== null) ? value.toString() : '';
+                        const value = row[index];
+                        item[header] = (value !== undefined && value !== null) ? value.toString() : '';
+                    });
                     return item;
                 }).filter(item => {
                     return Object.values(item).some(value => value.trim() !== '');
@@ -970,5 +971,3 @@
     </script>
 </body>
 </html>
-
-
