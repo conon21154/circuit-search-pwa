@@ -555,6 +555,11 @@
         let itemsPerPage = 10;
         let searchQuery = '';
 
+        // 값 표시 함수 (0도 정상 표시)
+        function displayValue(value) {
+            return (value !== undefined && value !== null && value !== '') ? value : 'N/A';
+        }
+
         // PWA 설치 기능
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -834,39 +839,39 @@
 
             const html = itemsToShow.map(item => `
                 <div class="result-card">
-                    <div class="result-title">${item.RU_NAME || 'N/A'}</div>
+                    <div class="result-title">${displayValue(item.RU_NAME)}</div>
                     <div class="result-details">
                         <div class="detail-item">
                             <div class="detail-label">RU ID</div>
-                            <div class="detail-value">${item.RU_ID || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.RU_ID)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">MUX</div>
-                            <div class="detail-value">${item.MUX || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.MUX)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">채널</div>
-                            <div class="detail-value">${item.CH || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.CH)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">DU ID</div>
-                            <div class="detail-value">${item.DU_ID || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.DU_ID)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">DU NAME</div>
-                            <div class="detail-value">${item.DU_NAME || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.DU_NAME)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">카드</div>
-                            <div class="detail-value">${item.CARD || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.CARD)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">포트</div>
-                            <div class="detail-value">${item.PORT || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.PORT)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">시리얼</div>
-                            <div class="detail-value">${item.serial || 'N/A'}</div>
+                            <div class="detail-value">${displayValue(item.serial)}</div>
                         </div>
                     </div>
                 </div>
