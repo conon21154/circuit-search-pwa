@@ -661,8 +661,8 @@
                 allData = jsonData.slice(1).map(row => {
                     const item = {};
                     headers.forEach((header, index) => {
-                        item[header] = row[index] ? row[index].toString() : '';
-                    });
+                    const value = row[index];
+                 item[header] = (value !== undefined && value !== null) ? value.toString() : '';
                     return item;
                 }).filter(item => {
                     return Object.values(item).some(value => value.trim() !== '');
@@ -970,4 +970,5 @@
     </script>
 </body>
 </html>
+
 
