@@ -15,7 +15,6 @@
     <!-- PWA 매니페스트 -->
     <link rel="manifest" href="manifest.json">
     
-        
     <style>
         * {
             margin: 0;
@@ -220,10 +219,57 @@
             border-color: #667eea;
         }
 
+        .results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e0e6ed;
+        }
+
         .results-count {
             color: #64748b;
             font-size: 14px;
-            margin-bottom: 15px;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .view-btn {
+            padding: 5px 10px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .search-guide {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .search-guide-text {
+            color: #92400e;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .result-card {
@@ -343,6 +389,30 @@
             font-size: 12px;
         }
 
+        .load-more-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .load-more-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .load-more-btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* PWA 전용 스타일 */
         @media (display-mode: standalone) {
             .pwa-header {
@@ -378,6 +448,12 @@
             .filter-btn {
                 white-space: nowrap;
                 flex-shrink: 0;
+            }
+            
+            .results-info {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
             }
             
             @media (display-mode: standalone) {
@@ -426,6 +502,13 @@
                 </div>
                 <button class="reset-btn" onclick="resetApp()">다시 업로드</button>
             </div>
+
+            <!-- 검색 안내 -->
+            <div class="search-guide" id="searchGuide">
+                <div class="search-guide-text">
+                    ⚡ 성능 최적화: 검색어를 입력하면 결과를 표시합니다 (최대 4,275개 데이터)
+                </div>
+            </div>
             
             <div class="search-box">
                 <input 
@@ -444,8 +527,20 @@
                 <button class="filter-btn" data-field="MUX">MUX</button>
             </div>
             
-            <div class="results-count" id="resultsCount"></div>
+            <div class="results-info" id="resultsInfo" style="display: none;">
+                <div class="results-count" id="resultsCount"></div>
+                <div class="view-controls">
+                    <button class="view-btn active" id="viewBtn10" onclick="setItemsPerPage(10)">10개씩</button>
+                    <button class="view-btn" id="viewBtn20" onclick="setItemsPerPage(20)">20개씩</button>
+                    <button class="view-btn" id="viewBtn50" onclick="setItemsPerPage(50)">50개씩</button>
+                </div>
+            </div>
+            
             <div id="results"></div>
+            
+            <button class="load-more-btn" id="loadMoreBtn" style="display: none;" onclick="loadMoreResults()">
+                더 보기 📋
+            </button>
         </div>
     </div>
 
@@ -456,6 +551,9 @@
         let currentFilter = 'all';
         let currentFileName = '';
         let deferredPrompt;
+        let displayedItems = 0;
+        let itemsPerPage = 10;
+        let searchQuery = '';
 
         // PWA 설치 기능
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -570,14 +668,15 @@
                     console.warn('로컬 저장 실패, 메모리에서만 동작합니다.');
                 }
 
-                filteredData = [...allData];
+                filteredData = [];
+                displayedItems = 0;
                 
                 document.getElementById('fileName').textContent = currentFileName;
                 document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 로드됨 (오프라인 저장됨)`;
                 document.getElementById('fileInfo').style.display = 'flex';
                 
-                displayResults();
-                updateResultsCount();
+                // 초기 상태는 검색 안내만 표시
+                showSearchGuide();
                 
             } catch (error) {
                 console.error('파일 처리 실패:', error);
@@ -591,6 +690,22 @@
             }
         }
 
+        // 검색 안내 표시
+        function showSearchGuide() {
+            document.getElementById('results').innerHTML = `
+                <div class="no-results">
+                    <div class="no-results-icon">🔍</div>
+                    <h3>검색어를 입력하세요</h3>
+                    <p>성능 최적화를 위해 검색어 입력 시 결과를 표시합니다</p>
+                    <p style="margin-top: 10px; font-size: 14px; color: #64748b;">
+                        예시: "복산동", "온천", "SK" 등
+                    </p>
+                </div>
+            `;
+            document.getElementById('resultsInfo').style.display = 'none';
+            document.getElementById('loadMoreBtn').style.display = 'none';
+        }
+
         // 앱 시작 시 저장된 데이터 로드
         function loadSavedData() {
             try {
@@ -600,8 +715,9 @@
                 
                 if (savedData && savedFileName) {
                     allData = JSON.parse(savedData);
-                    filteredData = [...allData];
+                    filteredData = [];
                     currentFileName = savedFileName;
+                    displayedItems = 0;
                     
                     document.getElementById('uploadSection').style.display = 'none';
                     document.getElementById('searchSection').style.display = 'block';
@@ -612,8 +728,7 @@
                         `${allData.length.toLocaleString()}개 데이터 (${updateDate} 저장됨)`;
                     document.getElementById('fileInfo').style.display = 'flex';
                     
-                    displayResults();
-                    updateResultsCount();
+                    showSearchGuide();
                     
                     return true;
                 }
@@ -623,12 +738,35 @@
             return false;
         }
 
+        // 페이지당 아이템 수 설정
+        function setItemsPerPage(count) {
+            itemsPerPage = count;
+            displayedItems = 0;
+            
+            // 버튼 활성화 상태 업데이트
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`viewBtn${count}`).classList.add('active');
+            
+            if (searchQuery.trim()) {
+                displayResults();
+            }
+        }
+
+        // 더 보기 기능
+        function loadMoreResults() {
+            displayResults(true);
+        }
+
         // 앱 초기화
         function resetApp() {
             allData = [];
             filteredData = [];
             currentFilter = 'all';
             currentFileName = '';
+            searchQuery = '';
+            displayedItems = 0;
             
             // 로컬 스토리지 클리어
             localStorage.removeItem('circuitData');
@@ -650,28 +788,31 @@
 
         // 검색 기능
         function search() {
-            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
             
-            if (!query) {
-                filteredData = [...allData];
-            } else {
-                filteredData = allData.filter(item => {
-                    if (currentFilter === 'all') {
-                        return Object.values(item).some(value => 
-                            value.toString().toLowerCase().includes(query)
-                        );
-                    } else {
-                        return item[currentFilter]?.toString().toLowerCase().includes(query) || false;
-                    }
-                });
+            if (!searchQuery) {
+                showSearchGuide();
+                return;
             }
+
+            // 검색 수행
+            filteredData = allData.filter(item => {
+                if (currentFilter === 'all') {
+                    return Object.values(item).some(value => 
+                        value.toString().toLowerCase().includes(searchQuery)
+                    );
+                } else {
+                    return item[currentFilter]?.toString().toLowerCase().includes(searchQuery) || false;
+                }
+            });
             
+            displayedItems = 0;
             displayResults();
             updateResultsCount();
         }
 
         // 결과 표시
-        function displayResults() {
+        function displayResults(append = false) {
             const resultsDiv = document.getElementById('results');
             
             if (filteredData.length === 0) {
@@ -682,10 +823,16 @@
                         <p>다른 검색어를 시도해보세요</p>
                     </div>
                 `;
+                document.getElementById('resultsInfo').style.display = 'none';
+                document.getElementById('loadMoreBtn').style.display = 'none';
                 return;
             }
 
-            const html = filteredData.slice(0, 50).map(item => `
+            const startIndex = append ? displayedItems : 0;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+            const itemsToShow = filteredData.slice(startIndex, endIndex);
+
+            const html = itemsToShow.map(item => `
                 <div class="result-card">
                     <div class="result-title">${item.RU_NAME || 'N/A'}</div>
                     <div class="result-details">
@@ -725,23 +872,35 @@
                 </div>
             `).join('');
 
-            resultsDiv.innerHTML = html;
-            
-            if (filteredData.length > 50) {
-                resultsDiv.innerHTML += `
-                    <div style="text-align: center; padding: 20px; color: #64748b;">
-                        처음 50개 결과만 표시됩니다. 더 구체적인 검색어를 사용해보세요.
-                    </div>
-                `;
+            if (append) {
+                resultsDiv.innerHTML += html;
+            } else {
+                resultsDiv.innerHTML = html;
             }
+
+            displayedItems = endIndex;
+
+            // 더 보기 버튼 표시/숨기기
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (displayedItems < filteredData.length) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.textContent = `더 보기 (${filteredData.length - displayedItems}개 남음) 📋`;
+                loadMoreBtn.disabled = false;
+            } else {
+                loadMoreBtn.style.display = 'none';
+            }
+
+            document.getElementById('resultsInfo').style.display = 'flex';
         }
 
         // 결과 개수 업데이트
         function updateResultsCount() {
             const count = filteredData.length;
             const total = allData.length;
+            const showing = Math.min(displayedItems, count);
+            
             document.getElementById('resultsCount').textContent = 
-                `총 ${total.toLocaleString()}개 중 ${count.toLocaleString()}개 결과`;
+                `총 ${total.toLocaleString()}개 중 ${count.toLocaleString()}개 검색됨 (${showing}개 표시)`;
         }
 
         // 필터 설정
@@ -801,5 +960,4 @@
         });
     </script>
 </body>
-
 </html>
