@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회선선번장 검색</title>
+    
+    <!-- PWA 메타태그 -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="회선선번장">
+    <meta name="description" content="5G RU 회선선번장 검색 시스템">
+    
+    <!-- PWA 매니페스트 -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- 아이콘 -->
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            padding-bottom: 80px; /* PWA 네비게이션 바를 위한 여백 */
+        }
+
+        .pwa-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(102, 126, 234, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 15px 20px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .pwa-header h1 {
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 70px auto 0; /* 헤더 높이만큼 마진 */
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .install-banner {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            display: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .install-banner:hover {
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+
+        .install-banner.show {
+            display: block;
+        }
+
+        .status-bar {
+            background: linear-gradient(45deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%);
+            padding: 15px 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .status-online {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-offline .status-dot {
+            background: #ff9800;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .upload-section {
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 1px solid #e0e6ed;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 15px;
+            padding: 40px 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8fafc;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f1f5f9;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e0f2fe;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #64748b;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .search-section {
+            padding: 30px 20px;
+            display: none;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 25px;
+            font-size: 16px;
+            border: 2px solid #e0e6ed;
+            border-radius: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 20px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 15px;
+            border: 2px solid #e0e6ed;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .results-count {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .result-card {
+            background: white;
+            border: 1px solid #e0e6ed;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            color: #334155;
+            font-weight: 500;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .no-results-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-info {
+            background: #e0f2fe;
+            border: 1px solid #0891b2;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-info-icon {
+            color: #0891b2;
+            font-size: 20px;
+        }
+
+        .file-info-text {
+            flex: 1;
+            color: #164e63;
+        }
+
+        .reset-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* PWA 전용 스타일 */
+        @media (display-mode: standalone) {
+            .pwa-header {
+                padding-top: 40px; /* 상태바 공간 */
+            }
+            
+            body {
+                padding-top: 0;
+            }
+            
+            .container {
+                margin-top: 110px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 70px 0 0 0;
+                border-radius: 0;
+                min-height: calc(100vh - 70px);
+            }
+            
+            .result-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 10px;
+            }
+            
+            .filter-btn {
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            
+            @media (display-mode: standalone) {
+                .container {
+                    margin-top: 110px;
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- PWA 헤더 -->
+    <div class="pwa-header">
+        <h1>📡 회선선번장</h1>
+    </div>
+
+    <!-- 설치 배너 -->
+    <div class="install-banner" id="installBanner">
+        📱 홈 화면에 앱 추가하기 - 탭하여 설치
+    </div>
+
+    <!-- 온라인/오프라인 상태 -->
+    <div class="status-bar">
+        <div class="status-online" id="statusIndicator">
+            <div class="status-dot"></div>
+            <span id="statusText">온라인 - 모든 기능 사용 가능</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">엑셀 파일을 업로드하세요</div>
+                <div class="upload-hint">클릭하거나 파일을 드래그해서 업로드</div>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+        </div>
+        
+        <div class="search-section" id="searchSection">
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <div class="file-info-icon">📋</div>
+                <div class="file-info-text">
+                    <strong id="fileName">파일명.xlsx</strong><br>
+                    <span id="fileStats">0개 데이터 로드됨</span>
+                </div>
+                <button class="reset-btn" onclick="resetApp()">다시 업로드</button>
+            </div>
+            
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    placeholder="RU_NAME으로 검색하세요 (예: 복산동, 온천동 등)"
+                    id="searchInput"
+                >
+                <div class="search-icon">🔍</div>
+            </div>
+            
+            <div class="filters">
+                <button class="filter-btn active" data-field="all">전체</button>
+                <button class="filter-btn" data-field="RU_NAME">RU명</button>
+                <button class="filter-btn" data-field="DU_NAME">DU명</button>
+                <button class="filter-btn" data-field="MUX">MUX</button>
+            </div>
+            
+            <div class="results-count" id="resultsCount"></div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let currentFilter = 'all';
+        let currentFileName = '';
+        let deferredPrompt;
+
+        // PWA 설치 기능
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').classList.add('show');
+        });
+
+        document.getElementById('installBanner').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('installBanner').classList.remove('show');
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        // 온라인/오프라인 상태 감지
+        function updateConnectionStatus() {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (navigator.onLine) {
+                statusIndicator.className = 'status-online';
+                statusText.textContent = '온라인 - 모든 기능 사용 가능';
+            } else {
+                statusIndicator.className = 'status-offline';
+                statusText.textContent = '오프라인 - 저장된 데이터만 사용 가능';
+            }
+        }
+
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+
+        // 파일 업로드 설정
+        function setupFileUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+        }
+
+        // 파일 처리 및 로컬 저장
+        async function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                alert('엑셀 파일(.xlsx 또는 .xls)만 업로드 가능합니다.');
+                return;
+            }
+
+            currentFileName = file.name;
+
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('searchSection').style.display = 'block';
+            document.getElementById('results').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>파일을 분석하고 저장하는 중...</p>
+                </div>
+            `;
+
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const headers = jsonData[0].map(h => h ? h.toString().trim() : '');
+                allData = jsonData.slice(1).map(row => {
+                    const item = {};
+                    headers.forEach((header, index) => {
+                        item[header] = row[index] ? row[index].toString() : '';
+                    });
+                    return item;
+                }).filter(item => {
+                    return Object.values(item).some(value => value.trim() !== '');
+                });
+
+                // 로컬 스토리지에 데이터 저장 (PWA 오프라인 기능)
+                try {
+                    localStorage.setItem('circuitData', JSON.stringify(allData));
+                    localStorage.setItem('circuitFileName', currentFileName);
+                    localStorage.setItem('circuitLastUpdate', new Date().toISOString());
+                } catch (e) {
+                    console.warn('로컬 저장 실패, 메모리에서만 동작합니다.');
+                }
+
+                filteredData = [...allData];
+                
+                document.getElementById('fileName').textContent = currentFileName;
+                document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 로드됨 (오프라인 저장됨)`;
+                document.getElementById('fileInfo').style.display = 'flex';
+                
+                displayResults();
+                updateResultsCount();
+                
+            } catch (error) {
+                console.error('파일 처리 실패:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">❌</div>
+                        <h3>파일 처리 실패</h3>
+                        <p>파일을 읽을 수 없습니다. 엑셀 파일인지 확인해주세요.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 앱 시작 시 저장된 데이터 로드
+        function loadSavedData() {
+            try {
+                const savedData = localStorage.getItem('circuitData');
+                const savedFileName = localStorage.getItem('circuitFileName');
+                const lastUpdate = localStorage.getItem('circuitLastUpdate');
+                
+                if (savedData && savedFileName) {
+                    allData = JSON.parse(savedData);
+                    filteredData = [...allData];
+                    currentFileName = savedFileName;
+                    
+                    document.getElementById('uploadSection').style.display = 'none';
+                    document.getElementById('searchSection').style.display = 'block';
+                    document.getElementById('fileName').textContent = currentFileName;
+                    
+                    const updateDate = new Date(lastUpdate).toLocaleString('ko-KR');
+                    document.getElementById('fileStats').textContent = 
+                        `${allData.length.toLocaleString()}개 데이터 (${updateDate} 저장됨)`;
+                    document.getElementById('fileInfo').style.display = 'flex';
+                    
+                    displayResults();
+                    updateResultsCount();
+                    
+                    return true;
+                }
+            } catch (e) {
+                console.warn('저장된 데이터 로드 실패');
+            }
+            return false;
+        }
+
+        // 앱 초기화
+        function resetApp() {
+            allData = [];
+            filteredData = [];
+            currentFilter = 'all';
+            currentFileName = '';
+            
+            // 로컬 스토리지 클리어
+            localStorage.removeItem('circuitData');
+            localStorage.removeItem('circuitFileName');
+            localStorage.removeItem('circuitLastUpdate');
+            
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('searchSection').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('searchInput').value = '';
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.field === 'all') {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // 검색 기능
+        function search() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!query) {
+                filteredData = [...allData];
+            } else {
+                filteredData = allData.filter(item => {
+                    if (currentFilter === 'all') {
+                        return Object.values(item).some(value => 
+                            value.toString().toLowerCase().includes(query)
+                        );
+                    } else {
+                        return item[currentFilter]?.toString().toLowerCase().includes(query) || false;
+                    }
+                });
+            }
+            
+            displayResults();
+            updateResultsCount();
+        }
+
+        // 결과 표시
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            
+            if (filteredData.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h3>검색 결과가 없습니다</h3>
+                        <p>다른 검색어를 시도해보세요</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = filteredData.slice(0, 50).map(item => `
+                <div class="result-card">
+                    <div class="result-title">${item.RU_NAME || 'N/A'}</div>
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <div class="detail-label">RU ID</div>
+                            <div class="detail-value">${item.RU_ID || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">MUX</div>
+                            <div class="detail-value">${item.MUX || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">채널</div>
+                            <div class="detail-value">${item.CH || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">DU ID</div>
+                            <div class="detail-value">${item.DU_ID || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">DU NAME</div>
+                            <div class="detail-value">${item.DU_NAME || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">카드</div>
+                            <div class="detail-value">${item.CARD || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">포트</div>
+                            <div class="detail-value">${item.PORT || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">시리얼</div>
+                            <div class="detail-value">${item.serial || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            resultsDiv.innerHTML = html;
+            
+            if (filteredData.length > 50) {
+                resultsDiv.innerHTML += `
+                    <div style="text-align: center; padding: 20px; color: #64748b;">
+                        처음 50개 결과만 표시됩니다. 더 구체적인 검색어를 사용해보세요.
+                    </div>
+                `;
+            }
+        }
+
+        // 결과 개수 업데이트
+        function updateResultsCount() {
+            const count = filteredData.length;
+            const total = allData.length;
+            document.getElementById('resultsCount').textContent = 
+                `총 ${total.toLocaleString()}개 중 ${count.toLocaleString()}개 결과`;
+        }
+
+        // 필터 설정
+        function setupFilters() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.field;
+                    search();
+                });
+            });
+        }
+
+        // 실시간 검색
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            let searchTimeout;
+            
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(search, 300);
+            });
+            
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    clearTimeout(searchTimeout);
+                    search();
+                }
+            });
+        }
+
+        // PWA 서비스 워커 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            updateConnectionStatus();
+            
+            // 저장된 데이터가 있으면 로드, 없으면 업로드 화면 표시
+            if (!loadSavedData()) {
+                setupFileUpload();
+            }
+            
+            setupFilters();
+            setupSearch();
+        });
+    </script>
+</body>
+</html>
