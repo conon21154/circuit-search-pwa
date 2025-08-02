@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>회선선번장 검색</title>
+    <title>LineGuide - 회선 정보 검색</title>
     
     <!-- PWA 메타태그 -->
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#1976d2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="회선선번장">
-    <meta name="description" content="5G RU 회선선번장 검색 시스템">
+    <meta name="apple-mobile-web-app-title" content="LineGuide">
+    <meta name="description" content="LineGuide - KT 통신장비 회선 정보 검색 시스템">
     
     <!-- PWA 매니페스트 -->
     <link rel="manifest" href="manifest.json">
@@ -674,7 +674,7 @@
 <body>
     <!-- PWA 헤더 -->
     <div class="pwa-header">
-        <h1>📡 회선선번장</h1>
+        <h1>🔗 LineGuide</h1>
     </div>
 
     <!-- 설치 배너 -->
@@ -701,15 +701,6 @@
         </div>
         
         <div class="search-section" id="searchSection">
-            <div class="file-info" id="fileInfo" style="display: none;">
-                <div class="file-info-icon">📋</div>
-                <div class="file-info-text">
-                    <strong id="fileName">공용 회선 정보</strong><br>
-                    <span id="fileStats">0개 데이터 로드됨</span>
-                </div>
-                <button class="reset-btn" onclick="resetApp()">다시 업로드</button>
-            </div>
-
             <!-- 디버그 정보 표시 (개발용) -->
             <div class="debug-info" id="debugInfo" style="display: none;">
                 <strong>디버그 정보:</strong><br>
