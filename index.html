@@ -996,9 +996,10 @@
                 filteredData = [];
                 displayedItems = 0;
                 
-                document.getElementById('fileName').textContent = currentFileName;
-                document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 로드됨 (오프라인 저장됨)`;
-                document.getElementById('fileInfo').style.display = 'flex';
+                // 파일 정보 숨김 처리
+                // document.getElementById('fileName').textContent = currentFileName;
+                // document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 로드됨 (오프라인 저장됨)`;
+                // document.getElementById('fileInfo').style.display = 'flex';
                 
                 // 초기 상태는 검색 안내만 표시
                 showSearchGuide();
@@ -1056,9 +1057,10 @@
                 currentFileName = "공용 회선 정보";
                 document.getElementById('uploadSection').style.display = 'none';
                 document.getElementById('searchSection').style.display = 'block';
-                document.getElementById('fileName').textContent = currentFileName;
-                document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 불러옴`;
-                document.getElementById('fileInfo').style.display = 'flex';
+                // 파일 정보 숨김 처리
+                // document.getElementById('fileName').textContent = currentFileName;
+                // document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 불러옴`;
+                // document.getElementById('fileInfo').style.display = 'flex';
 
                 showDebugInfo(`최종 처리된 데이터 수: ${allData.length}`);
                 showSearchGuide();
