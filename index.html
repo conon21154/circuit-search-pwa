@@ -413,6 +413,19 @@
             transform: none;
         }
 
+        /* 디버그 정보 표시 스타일 */
+        .debug-info {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #92400e;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
         /* PWA 전용 스타일 */
         @media (display-mode: standalone) {
             .pwa-header {
@@ -503,6 +516,12 @@
                 <button class="reset-btn" onclick="resetApp()">다시 업로드</button>
             </div>
 
+            <!-- 디버그 정보 표시 (개발용) -->
+            <div class="debug-info" id="debugInfo" style="display: none;">
+                <strong>디버그 정보:</strong><br>
+                <div id="debugContent"></div>
+            </div>
+
             <!-- 검색 안내 -->
             <div class="search-guide" id="searchGuide">
                 <div class="search-guide-text">
@@ -555,16 +574,30 @@
         let itemsPerPage = 10;
         let searchQuery = '';
 
-        // 공백값 처리 함수
+        // 공백값 처리 함수 개선
         function displayValue(value) {
-            // 값이 존재하고 공백 제거 후에도 내용이 있는 경우
-            if (value !== undefined && value !== null && value !== '') {
-                const strValue = String(value).trim();
-                if (strValue !== '') {
-                    return strValue;
-                }
+            // null, undefined, 빈 문자열 체크
+            if (value === null || value === undefined) {
+                return 'N/A';
             }
-            return 'N/A';
+            
+            // 문자열로 변환 후 트림
+            const strValue = String(value).trim();
+            
+            // 빈 문자열이거나 특정 값들인 경우 N/A 처리
+            if (strValue === '' || strValue === 'null' || strValue === 'undefined') {
+                return 'N/A';
+            }
+            
+            return strValue;
+        }
+
+        // 디버그 정보 표시 함수
+        function showDebugInfo(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugContent = document.getElementById('debugContent');
+            debugContent.innerHTML += message + '<br>';
+            debugInfo.style.display = 'block';
         }
 
         // PWA 설치 기능
@@ -660,60 +693,33 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                 
+                if (jsonData.length === 0) {
+                    throw new Error('엑셀 파일이 비어있습니다.');
+                }
+                
                 const headers = jsonData[0].map(h => h ? h.toString().trim() : '');
+                showDebugInfo(`엑셀 헤더: ${headers.join(', ')}`);
                 
-                // 디버깅: 실제 컬럼명 출력
-                console.log('엑셀 파일의 실제 컬럼명:', headers);
-                
-                allData = jsonData.slice(1).map(row => {
+                // 원본 데이터 처리 (매핑 없이)
+                allData = jsonData.slice(1).map((row, index) => {
                     const item = {};
-                    headers.forEach((header, index) => {
-                        const value = row[index];
-                        // 값이 0인 경우도 유효한 값으로 처리
-                        if (value !== undefined && value !== null && value !== '') {
-                            item[header] = value.toString().trim();
-                        } else {
-                            item[header] = '';
-                        }
+                    headers.forEach((header, colIndex) => {
+                        const value = row[colIndex];
+                        item[header] = value;
                     });
                     return item;
                 }).filter(item => {
-                    return Object.values(item).some(value => value.trim() !== '');
+                    // 최소한 하나의 필드라도 값이 있는 행만 포함
+                    return Object.values(item).some(value => 
+                        value !== undefined && value !== null && value !== ''
+                    );
                 });
-                
-                // 디버깅: 첫 번째 데이터 샘플 출력
+
+                showDebugInfo(`처리된 데이터 수: ${allData.length}`);
                 if (allData.length > 0) {
-                    console.log('첫 번째 데이터 샘플:', allData[0]);
+                    showDebugInfo(`첫 번째 데이터 키: ${Object.keys(allData[0]).join(', ')}`);
+                    showDebugInfo(`첫 번째 데이터 샘플: ${JSON.stringify(allData[0], null, 2)}`);
                 }
-                
-                // 컬럼명 매칭 개선: 대소문자 구분 없이 매칭
-                const normalizeColumnName = (name) => {
-                    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                };
-                
-                // 컬럼명 매핑 테이블
-                const columnMapping = {
-                    'runame': 'RU_NAME',
-                    'ruid': 'RU_ID',
-                    'mux': 'MUX',
-                    'ch': 'CH',
-                    'duid': 'DU_ID',
-                    'duname': 'DU_NAME',
-                    'card': 'CARD',
-                    'port': 'PORT',
-                    'serial': 'serial'
-                };
-                
-                // 컬럼명 정규화 및 매핑
-                allData = allData.map(item => {
-                    const normalizedItem = {};
-                    Object.keys(item).forEach(key => {
-                        const normalizedKey = normalizeColumnName(key);
-                        const mappedKey = columnMapping[normalizedKey] || key;
-                        normalizedItem[mappedKey] = item[key];
-                    });
-                    return normalizedItem;
-                });
 
                 // 로컬 스토리지에 데이터 저장 (PWA 오프라인 기능)
                 try {
@@ -731,16 +737,12 @@
                 document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 로드됨 (오프라인 저장됨)`;
                 document.getElementById('fileInfo').style.display = 'flex';
                 
-                // 디버깅 정보 표시 (개발용)
-                console.log('데이터 로드 완료. 컬럼명:', Object.keys(allData[0] || {}));
-                console.log('CARD 컬럼 샘플:', allData.slice(0, 3).map(item => item.CARD));
-                console.log('PORT 컬럼 샘플:', allData.slice(0, 3).map(item => item.PORT));
-                
                 // 초기 상태는 검색 안내만 표시
                 showSearchGuide();
                 
             } catch (error) {
                 console.error('파일 처리 실패:', error);
+                showDebugInfo(`파일 처리 실패: ${error.message}`);
                 document.getElementById('results').innerHTML = `
                     <div class="no-results">
                         <div class="no-results-icon">❌</div>
@@ -764,105 +766,29 @@
             document.getElementById('loadMoreBtn').style.display = 'none';
         }
 
-        // 구글시트에서 데이터 불러오기
+        // 구글시트에서 데이터 불러오기 개선
         async function loadSavedData() {
             try {
-                // 모바일 환경에서 더 안정적인 요청 설정
-                const response = await fetch('https://opensheet.elk.sh/1Gv5WVAxmZVIhID4vJ8o2zLq7SUzaU-v0p6Bit4dAN4s/Sheet1', {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    mode: 'cors'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
+                const response = await fetch('https://opensheet.elk.sh/1Gv5WVAxmZVIhID4vJ8o2zLq7SUzaU-v0p6Bit4dAN4s/Sheet1');
                 const data = await response.json();
                 
-                // 데이터 유효성 검사
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error('데이터가 비어있거나 올바르지 않습니다.');
-                }
+                showDebugInfo(`구글시트에서 ${data.length}개 데이터 로드`);
                 
-                allData = data;
-                filteredData = [];
-                displayedItems = 0;
-
-                // 디버깅: 실제 컬럼명과 첫 번째 데이터 확인
-                if (allData.length > 0) {
-                    console.log('구글시트 실제 컬럼명:', Object.keys(allData[0]));
-                    console.log('첫 번째 데이터 샘플:', allData[0]);
-                    console.log('RU_ID 값:', allData[0].RU_ID);
-                    console.log('DU_ID 값:', allData[0].DU_ID);
-                    console.log('DU_NAME 값:', allData[0].DU_NAME);
+                if (data.length > 0) {
+                    showDebugInfo(`구글시트 컬럼: ${Object.keys(data[0]).join(', ')}`);
+                    showDebugInfo(`첫 번째 데이터: ${JSON.stringify(data[0], null, 2)}`);
                 }
 
-                // 컬럼명 매칭 개선: 대소문자 구분 없이 매칭
-                const normalizeColumnName = (name) => {
-                    if (!name) return '';
-                    return name.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
-                };
-
-                // 컬럼명 매핑 테이블 (다양한 변형 포함)
-                const columnMapping = {
-                    'runame': 'RU_NAME',
-                    'ruid': 'RU_ID',
-                    'ru_id': 'RU_ID',
-                    'ruid': 'RU_ID',
-                    'mux': 'MUX',
-                    'ch': 'CH',
-                    'channel': 'CH',
-                    'duid': 'DU_ID',
-                    'du_id': 'DU_ID',
-                    'duname': 'DU_NAME',
-                    'du_name': 'DU_NAME',
-                    'card': 'CARD',
-                    'port': 'PORT',
-                    'serial': 'serial'
-                };
-
-                // 컬럼명 정규화 및 매핑 (모바일 환경 최적화)
-                allData = allData.map(item => {
-                    const normalizedItem = {};
-                    if (item && typeof item === 'object') {
-                        Object.keys(item).forEach(key => {
-                            const normalizedKey = normalizeColumnName(key);
-                            const mappedKey = columnMapping[normalizedKey] || key;
-                            // 값이 null, undefined, 빈 문자열이 아닌 경우만 저장
-                            const value = item[key];
-                            if (value !== null && value !== undefined && value !== '') {
-                                normalizedItem[mappedKey] = value.toString().trim();
-                            } else {
-                                normalizedItem[mappedKey] = '';
-                            }
-                        });
-                    }
-                    return normalizedItem;
+                // 원본 데이터를 그대로 사용 (매핑 없이)
+                allData = data.filter(item => {
+                    // 최소한 하나의 필드라도 값이 있는 행만 포함
+                    return Object.values(item).some(value => 
+                        value !== undefined && value !== null && value !== '' && value !== 'null'
+                    );
                 });
 
-                // 매핑 후 디버깅
-                if (allData.length > 0) {
-                    console.log('매핑 후 컬럼명:', Object.keys(allData[0]));
-                    console.log('매핑 후 RU_ID 값:', allData[0].RU_ID);
-                    console.log('매핑 후 DU_ID 값:', allData[0].DU_ID);
-                    console.log('매핑 후 DU_NAME 값:', allData[0].DU_NAME);
-                    
-                    // 모바일에서 디버깅 정보를 화면에 표시 (개발용)
-                    const debugInfo = `
-                        <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 8px; font-size: 12px;">
-                            <strong>디버깅 정보:</strong><br>
-                            컬럼명: ${Object.keys(allData[0]).join(', ')}<br>
-                            RU_ID: ${allData[0].RU_ID || 'N/A'}<br>
-                            DU_ID: ${allData[0].DU_ID || 'N/A'}<br>
-                            DU_NAME: ${allData[0].DU_NAME || 'N/A'}
-                        </div>
-                    `;
-                    document.getElementById('fileStats').innerHTML += debugInfo;
-                }
+                filteredData = [];
+                displayedItems = 0;
 
                 currentFileName = "공용 회선 정보";
                 document.getElementById('uploadSection').style.display = 'none';
@@ -871,18 +797,11 @@
                 document.getElementById('fileStats').textContent = `${allData.length.toLocaleString()}개 데이터 불러옴`;
                 document.getElementById('fileInfo').style.display = 'flex';
 
+                showDebugInfo(`최종 처리된 데이터 수: ${allData.length}`);
                 showSearchGuide();
             } catch (e) {
                 console.error("서버 데이터 로딩 실패", e);
-                // 모바일에서 오류 발생 시 사용자에게 알림
-                document.getElementById('results').innerHTML = `
-                    <div class="no-results">
-                        <div class="no-results-icon">⚠️</div>
-                        <h3>데이터 로딩 실패</h3>
-                        <p>네트워크 연결을 확인하고 다시 시도해주세요.</p>
-                        <button onclick="loadSavedData()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 8px;">다시 시도</button>
-                    </div>
-                `;
+                showDebugInfo(`서버 데이터 로딩 실패: ${e.message}`);
             }
         }
 
@@ -916,6 +835,10 @@
             searchQuery = '';
             displayedItems = 0;
             
+            // 디버그 정보 초기화
+            document.getElementById('debugInfo').style.display = 'none';
+            document.getElementById('debugContent').innerHTML = '';
+            
             // 로컬 스토리지 클리어
             localStorage.removeItem('circuitData');
             localStorage.removeItem('circuitFileName');
@@ -942,13 +865,19 @@
                 return;
             }
 
+            // 동적으로 사용 가능한 필드 확인
+            const availableFields = allData.length > 0 ? Object.keys(allData[0]) : [];
+            showDebugInfo(`검색 가능한 필드: ${availableFields.join(', ')}`);
+
             filteredData = allData.filter(item => {
                 if (currentFilter === 'all') {
                     return Object.values(item).some(value =>
-                        value.toString().toLowerCase().includes(searchQuery)
+                        value && value.toString().toLowerCase().includes(searchQuery)
                     );
                 } else {
-                    return item[currentFilter]?.toString().toLowerCase().includes(searchQuery) || false;
+                    // 필터 필드가 실제로 존재하는지 확인
+                    const fieldValue = item[currentFilter];
+                    return fieldValue && fieldValue.toString().toLowerCase().includes(searchQuery);
                 }
             });
 
@@ -977,21 +906,54 @@
             const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
             const itemsToShow = filteredData.slice(startIndex, endIndex);
 
-            const html = itemsToShow.map(item => `
-                <div class="result-card">
-                    <div class="result-title">${displayValue(item.RU_NAME)}</div>
-                    <div class="result-details">
-                        <div class="detail-item"><div class="detail-label">RU ID</div><div class="detail-value">${displayValue(item.RU_ID)}</div></div>
-                        <div class="detail-item"><div class="detail-label">MUX</div><div class="detail-value">${displayValue(item.MUX)}</div></div>
-                        <div class="detail-item"><div class="detail-label">채널</div><div class="detail-value">${displayValue(item.CH)}</div></div>
-                        <div class="detail-item"><div class="detail-label">DU ID</div><div class="detail-value">${displayValue(item.DU_ID)}</div></div>
-                        <div class="detail-item"><div class="detail-label">DU NAME</div><div class="detail-value">${displayValue(item.DU_NAME)}</div></div>
-                        <div class="detail-item"><div class="detail-label">카드</div><div class="detail-value">${displayValue(item.CARD)}</div></div>
-                        <div class="detail-item"><div class="detail-label">포트</div><div class="detail-value">${displayValue(item.PORT)}</div></div>
-                        <div class="detail-item"><div class="detail-label">시리얼</div><div class="detail-value">${displayValue(item.serial)}</div></div>
+            // 동적으로 필드 매핑 및 표시
+            const html = itemsToShow.map((item, index) => {
+                const fields = Object.keys(item);
+                showDebugInfo(`아이템 ${index + 1} 필드: ${fields.join(', ')}`);
+                
+                // 주요 필드들을 동적으로 찾기
+                const ruNameField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('name')) || 
+                                   fields.find(f => f.toLowerCase() === 'runame') || 
+                                   fields.find(f => f.includes('RU_NAME')) ||
+                                   'RU_NAME';
+                
+                const ruIdField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('id')) || 
+                                 fields.find(f => f.toLowerCase() === 'ruid') || 
+                                 fields.find(f => f.includes('RU_ID')) ||
+                                 'RU_ID';
+                
+                const duNameField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('name')) || 
+                                   fields.find(f => f.toLowerCase() === 'duname') || 
+                                   fields.find(f => f.includes('DU_NAME')) ||
+                                   'DU_NAME';
+                
+                const duIdField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('id')) || 
+                                 fields.find(f => f.toLowerCase() === 'duid') || 
+                                 fields.find(f => f.includes('DU_ID')) ||
+                                 'DU_ID';
+
+                const muxField = fields.find(f => f.toLowerCase() === 'mux') || 'MUX';
+                const chField = fields.find(f => f.toLowerCase() === 'ch' || f.toLowerCase() === 'channel') || 'CH';
+                const cardField = fields.find(f => f.toLowerCase() === 'card') || 'CARD';
+                const portField = fields.find(f => f.toLowerCase() === 'port') || 'PORT';
+                const serialField = fields.find(f => f.toLowerCase() === 'serial') || 'serial';
+
+                return `
+                    <div class="result-card">
+                        <div class="result-title">${displayValue(item[ruNameField])}</div>
+                        <div class="result-details">
+                            <div class="detail-item"><div class="detail-label">RU ID</div><div class="detail-value">${displayValue(item[ruIdField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">MUX</div><div class="detail-value">${displayValue(item[muxField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">채널</div><div class="detail-value">${displayValue(item[chField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">DU ID</div><div class="detail-value">${displayValue(item[duIdField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">DU NAME</div><div class="detail-value">${displayValue(item[duNameField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">카드</div><div class="detail-value">${displayValue(item[cardField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">포트</div><div class="detail-value">${displayValue(item[portField])}</div></div>
+                            <div class="detail-item"><div class="detail-label">시리얼</div><div class="detail-value">${displayValue(item[serialField])}</div></div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             if (append) {
                 resultsDiv.innerHTML += html;
@@ -1065,12 +1027,8 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             updateConnectionStatus();
-            
-            // 모바일 환경에서 더 안정적인 로딩
-            setTimeout(() => {
-                loadSavedData(); // 엑셀 업로드 없이 바로 시작
-            }, 100);
-            
+            loadSavedData(); // 엑셀 업로드 없이 바로 시작
+            setupFileUpload();
             setupFilters();
             setupSearch();
         });
