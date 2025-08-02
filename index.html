@@ -413,7 +413,7 @@
             transform: none;
         }
 
-        /* 디버그 정보 표시 스타일 */
+        /* 디버그 정보 표시 스타일 (개발용) */
         .debug-info {
             background: #fef3c7;
             border: 1px solid #f59e0b;
@@ -424,6 +424,89 @@
             color: #92400e;
             max-height: 150px;
             overflow-y: auto;
+            display: none; /* 기본적으로 숨김 */
+        }
+
+        /* 간단한 결과 카드 스타일 */
+        .simple-result-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .simple-result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .simple-result-card .ru-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .simple-result-card .ru-id {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        /* 상세 정보 모달 스타일 */
+        .detail-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .detail-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1a202c;
+            padding-right: 40px;
         }
 
         /* PWA 전용 스타일 */
@@ -522,10 +605,19 @@
                 <div id="debugContent"></div>
             </div>
 
+            <!-- 상세 정보 모달 -->
+            <div class="detail-modal" id="detailModal">
+                <div class="modal-content">
+                    <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+                    <div class="modal-title" id="modalTitle"></div>
+                    <div class="result-details" id="modalDetails"></div>
+                </div>
+            </div>
+
             <!-- 검색 안내 -->
             <div class="search-guide" id="searchGuide">
                 <div class="search-guide-text">
-                    ⚡ 성능 최적화: 검색어를 입력하면 결과를 표시합니다 (최대 4,275개 데이터)
+                    🔍 RU명, DU명, MUX 등으로 검색하세요
                 </div>
             </div>
             
@@ -592,12 +684,72 @@
             return strValue;
         }
 
-        // 디버그 정보 표시 함수
+        // 디버그 정보 표시 함수 (개발용)
         function showDebugInfo(message) {
             const debugInfo = document.getElementById('debugInfo');
             const debugContent = document.getElementById('debugContent');
             debugContent.innerHTML += message + '<br>';
-            debugInfo.style.display = 'block';
+            // 개발 모드에서만 표시
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                debugInfo.style.display = 'block';
+            }
+        }
+
+        // 모달 관련 함수들
+        function showDetailModal(item) {
+            const modal = document.getElementById('detailModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDetails = document.getElementById('modalDetails');
+            
+            // 필드 매핑
+            const fields = Object.keys(item);
+            const ruNameField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('name')) || 
+                               fields.find(f => f.toLowerCase() === 'runame') || 
+                               fields.find(f => f.includes('RU_NAME')) ||
+                               'RU_NAME';
+            
+            const ruIdField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('id')) || 
+                             fields.find(f => f.toLowerCase() === 'ruid') || 
+                             fields.find(f => f.includes('RU_ID')) ||
+                             'RU_ID';
+            
+            const duNameField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('name')) || 
+                               fields.find(f => f.toLowerCase() === 'duname') || 
+                               fields.find(f => f.includes('DU_NAME')) ||
+                               'DU_NAME';
+            
+            const duIdField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('id')) || 
+                             fields.find(f => f.toLowerCase() === 'duid') || 
+                             fields.find(f => f.includes('DU_ID')) ||
+                             'DU_ID';
+
+            const muxField = fields.find(f => f.toLowerCase() === 'mux') || 'MUX';
+            const chField = fields.find(f => f.toLowerCase() === 'ch' || f.toLowerCase() === 'channel') || 'CH';
+            const cardField = fields.find(f => f.toLowerCase() === 'card') || 'CARD';
+            const portField = fields.find(f => f.toLowerCase() === 'port') || 'PORT';
+            const serialField = fields.find(f => f.toLowerCase() === 'serial') || 'serial';
+
+            // 모달 제목 설정
+            modalTitle.textContent = displayValue(item[ruNameField]);
+
+            // 상세 정보 HTML 생성
+            modalDetails.innerHTML = `
+                <div class="detail-item"><div class="detail-label">RU ID</div><div class="detail-value">${displayValue(item[ruIdField])}</div></div>
+                <div class="detail-item"><div class="detail-label">MUX</div><div class="detail-value">${displayValue(item[muxField])}</div></div>
+                <div class="detail-item"><div class="detail-label">채널</div><div class="detail-value">${displayValue(item[chField])}</div></div>
+                <div class="detail-item"><div class="detail-label">DU ID</div><div class="detail-value">${displayValue(item[duIdField])}</div></div>
+                <div class="detail-item"><div class="detail-label">DU NAME</div><div class="detail-value">${displayValue(item[duNameField])}</div></div>
+                <div class="detail-item"><div class="detail-label">카드</div><div class="detail-value">${displayValue(item[cardField])}</div></div>
+                <div class="detail-item"><div class="detail-label">포트</div><div class="detail-value">${displayValue(item[portField])}</div></div>
+                <div class="detail-item"><div class="detail-label">시리얼</div><div class="detail-value">${displayValue(item[serialField])}</div></div>
+            `;
+
+            modal.classList.add('show');
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            modal.classList.remove('show');
         }
 
         // PWA 설치 기능
@@ -906,51 +1058,25 @@
             const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
             const itemsToShow = filteredData.slice(startIndex, endIndex);
 
-            // 동적으로 필드 매핑 및 표시
+                        // 간단한 결과 카드 생성
             const html = itemsToShow.map((item, index) => {
                 const fields = Object.keys(item);
-                showDebugInfo(`아이템 ${index + 1} 필드: ${fields.join(', ')}`);
                 
-                // 주요 필드들을 동적으로 찾기
+                // RU명과 RU ID 필드 찾기
                 const ruNameField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('name')) || 
                                    fields.find(f => f.toLowerCase() === 'runame') || 
                                    fields.find(f => f.includes('RU_NAME')) ||
                                    'RU_NAME';
                 
                 const ruIdField = fields.find(f => f.toLowerCase().includes('ru') && f.toLowerCase().includes('id')) || 
-                                 fields.find(f => f.toLowerCase() === 'ruid') || 
-                                 fields.find(f => f.includes('RU_ID')) ||
-                                 'RU_ID';
-                
-                const duNameField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('name')) || 
-                                   fields.find(f => f.toLowerCase() === 'duname') || 
-                                   fields.find(f => f.includes('DU_NAME')) ||
-                                   'DU_NAME';
-                
-                const duIdField = fields.find(f => f.toLowerCase().includes('du') && f.toLowerCase().includes('id')) || 
-                                 fields.find(f => f.toLowerCase() === 'duid') || 
-                                 fields.find(f => f.includes('DU_ID')) ||
-                                 'DU_ID';
-
-                const muxField = fields.find(f => f.toLowerCase() === 'mux') || 'MUX';
-                const chField = fields.find(f => f.toLowerCase() === 'ch' || f.toLowerCase() === 'channel') || 'CH';
-                const cardField = fields.find(f => f.toLowerCase() === 'card') || 'CARD';
-                const portField = fields.find(f => f.toLowerCase() === 'port') || 'PORT';
-                const serialField = fields.find(f => f.toLowerCase() === 'serial') || 'serial';
+                                  fields.find(f => f.toLowerCase() === 'ruid') || 
+                                  fields.find(f => f.includes('RU_ID')) ||
+                                  'RU_ID';
 
                 return `
-                    <div class="result-card">
-                        <div class="result-title">${displayValue(item[ruNameField])}</div>
-                        <div class="result-details">
-                            <div class="detail-item"><div class="detail-label">RU ID</div><div class="detail-value">${displayValue(item[ruIdField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">MUX</div><div class="detail-value">${displayValue(item[muxField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">채널</div><div class="detail-value">${displayValue(item[chField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">DU ID</div><div class="detail-value">${displayValue(item[duIdField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">DU NAME</div><div class="detail-value">${displayValue(item[duNameField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">카드</div><div class="detail-value">${displayValue(item[cardField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">포트</div><div class="detail-value">${displayValue(item[portField])}</div></div>
-                            <div class="detail-item"><div class="detail-label">시리얼</div><div class="detail-value">${displayValue(item[serialField])}</div></div>
-                        </div>
+                    <div class="simple-result-card" onclick="showDetailModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                        <div class="ru-name">${displayValue(item[ruNameField])}</div>
+                        <div class="ru-id">RU ID: ${displayValue(item[ruIdField])}</div>
                     </div>
                 `;
             }).join('');
@@ -1012,6 +1138,58 @@
             });
         }
 
+        // 페이지당 아이템 수 설정
+        function setItemsPerPage(count) {
+            itemsPerPage = count;
+            displayedItems = 0;
+            
+            // 버튼 활성화 상태 업데이트
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`viewBtn${count}`).classList.add('active');
+            
+            if (searchQuery.trim()) {
+                displayResults();
+            }
+        }
+
+        // 더 보기 기능
+        function loadMoreResults() {
+            displayResults(true);
+        }
+
+        // 앱 초기화
+        function resetApp() {
+            allData = [];
+            filteredData = [];
+            currentFilter = 'all';
+            currentFileName = '';
+            searchQuery = '';
+            displayedItems = 0;
+            
+            // 디버그 정보 초기화
+            document.getElementById('debugInfo').style.display = 'none';
+            document.getElementById('debugContent').innerHTML = '';
+            
+            // 로컬 스토리지 클리어
+            localStorage.removeItem('circuitData');
+            localStorage.removeItem('circuitFileName');
+            localStorage.removeItem('circuitLastUpdate');
+            
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('searchSection').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('searchInput').value = '';
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.field === 'all') {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
         // PWA 서비스 워커 등록
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -1031,6 +1209,13 @@
             setupFileUpload();
             setupFilters();
             setupSearch();
+            
+            // 모달 외부 클릭 시 닫기
+            document.getElementById('detailModal').addEventListener('click', (e) => {
+                if (e.target.id === 'detailModal') {
+                    closeDetailModal();
+                }
+            });
         });
     </script>
 </body>
