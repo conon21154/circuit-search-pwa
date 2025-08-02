@@ -557,8 +557,12 @@
 
         // 공백값 처리 함수
         function displayValue(value) {
-            if (value !== undefined && value !== null && String(value).trim() !== '') {
-                return String(value).trim();
+            // 값이 존재하고 공백 제거 후에도 내용이 있는 경우
+            if (value !== undefined && value !== null && value !== '') {
+                const strValue = String(value).trim();
+                if (strValue !== '') {
+                    return strValue;
+                }
             }
             return 'N/A';
         }
@@ -768,6 +772,57 @@
                 allData = data;
                 filteredData = [];
                 displayedItems = 0;
+
+                // 디버깅: 실제 컬럼명과 첫 번째 데이터 확인
+                if (allData.length > 0) {
+                    console.log('구글시트 실제 컬럼명:', Object.keys(allData[0]));
+                    console.log('첫 번째 데이터 샘플:', allData[0]);
+                    console.log('RU_ID 값:', allData[0].RU_ID);
+                    console.log('DU_ID 값:', allData[0].DU_ID);
+                    console.log('DU_NAME 값:', allData[0].DU_NAME);
+                }
+
+                // 컬럼명 매칭 개선: 대소문자 구분 없이 매칭
+                const normalizeColumnName = (name) => {
+                    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                };
+
+                // 컬럼명 매핑 테이블 (다양한 변형 포함)
+                const columnMapping = {
+                    'runame': 'RU_NAME',
+                    'ruid': 'RU_ID',
+                    'ru_id': 'RU_ID',
+                    'ruid': 'RU_ID',
+                    'mux': 'MUX',
+                    'ch': 'CH',
+                    'channel': 'CH',
+                    'duid': 'DU_ID',
+                    'du_id': 'DU_ID',
+                    'duname': 'DU_NAME',
+                    'du_name': 'DU_NAME',
+                    'card': 'CARD',
+                    'port': 'PORT',
+                    'serial': 'serial'
+                };
+
+                // 컬럼명 정규화 및 매핑
+                allData = allData.map(item => {
+                    const normalizedItem = {};
+                    Object.keys(item).forEach(key => {
+                        const normalizedKey = normalizeColumnName(key);
+                        const mappedKey = columnMapping[normalizedKey] || key;
+                        normalizedItem[mappedKey] = item[key];
+                    });
+                    return normalizedItem;
+                });
+
+                // 매핑 후 디버깅
+                if (allData.length > 0) {
+                    console.log('매핑 후 컬럼명:', Object.keys(allData[0]));
+                    console.log('매핑 후 RU_ID 값:', allData[0].RU_ID);
+                    console.log('매핑 후 DU_ID 값:', allData[0].DU_ID);
+                    console.log('매핑 후 DU_NAME 값:', allData[0].DU_NAME);
+                }
 
                 currentFileName = "공용 회선 정보";
                 document.getElementById('uploadSection').style.display = 'none';
