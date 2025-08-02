@@ -1,12 +1,13 @@
 {
-  "name": "회선선번장 검색 시스템",
-  "short_name": "회선검색",
-  "description": "5G RU 회선선번장 검색 및 관리 시스템입니다",
+  "name": "LineGuide - 회선 정보 검색",
+  "short_name": "LineGuide",
+  "version": "1.0.1",
+  "description": "KT 통신장비 회선 정보 검색 및 관리 시스템입니다",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#667eea",
-  "background_color": "#667eea",
+  "theme_color": "#1976d2",
+  "background_color": "#1976d2",
   "scope": "/",
   "lang": "ko",
   "categories": ["productivity", "utilities"],
@@ -53,3 +54,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ]
+}
